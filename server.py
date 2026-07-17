@@ -242,12 +242,42 @@ def _format_day(date_key: str, day_data: dict) -> str:
 
 if __name__ == "__main__":
     import sys
+    from starlette.responses import JSONResponse
+    from starlette.types import ASGIApp, Receive, Scope, Send
+
+    class OAuthDiscoveryMiddleware:
+        """Adds /.well-known/oauth-authorization-server/mcp for ChatGPT."""
+        def __init__(self, app: ASGIApp):
+            self.app = app
+            self.metadata = {
+                "issuer": "https://meal-tracker-mcp.onrender.com",
+                "authorization_endpoint": "https://meal-tracker-mcp.onrender.com/authorize",
+                "token_endpoint": "https://meal-tracker-mcp.onrender.com/token",
+                "response_types_supported": ["code"],
+                "grant_types_supported": ["authorization_code", "refresh_token"],
+                "token_endpoint_auth_methods_supported": ["client_secret_post", "client_secret_basic"],
+                "code_challenge_methods_supported": ["S256"],
+            }
+
+        async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+            if scope["type"] == "http" and scope["path"] == "/.well-known/oauth-authorization-server/mcp":
+                response = JSONResponse(self.metadata)
+                await response(scope, receive, send)
+            else:
+                await self.app(scope, receive, send)
 
     transport = "stdio"
     if "--http" in sys.argv:
         transport = "streamable-http"
 
     if transport == "streamable-http":
-        mcp.run(transport="streamable-http")
+        starlette_app = mcp.streamable_http_app()
+        wrapped = OAuthDiscoveryMiddleware(starlette_app)
+        import uvicorn
+        uvicorn.run(
+            wrapped,
+            host=mcp.settings.host,
+            port=mcp.settings.port,
+        )
     else:
         mcp.run(transport="stdio")

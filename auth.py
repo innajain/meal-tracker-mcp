@@ -10,11 +10,36 @@ from mcp.server.auth.provider import (
     AccessToken,
     RefreshToken,
 )
+from mcp.shared.auth import AnyUrl, InvalidRedirectUriError
+
+
+@dataclass
+class PermissiveOAuthClient(OAuthClientInformationFull):
+    """OAuthClientInformationFull that accepts any chatgpt.com redirect URI."""
+
+    def validate_redirect_uri(self, redirect_uri: AnyUrl | None) -> AnyUrl:
+        if redirect_uri is not None:
+            uri_str = str(redirect_uri)
+            # Accept any chatgpt.com redirect URI
+            if "chatgpt.com" in uri_str:
+                return redirect_uri
+            # Fall back to strict validation
+            if self.redirect_uris is None or redirect_uri not in self.redirect_uris:
+                raise InvalidRedirectUriError(
+                    f"Redirect URI '{redirect_uri}' not registered for client"
+                )
+            return redirect_uri
+        elif self.redirect_uris is not None and len(self.redirect_uris) == 1:
+            return self.redirect_uris[0]
+        else:
+            raise InvalidRedirectUriError(
+                "redirect_uri must be specified when client has multiple registered URIs"
+            )
 
 
 @dataclass
 class _Client:
-    info: OAuthClientInformationFull
+    info: PermissiveOAuthClient
 
 
 @dataclass
@@ -42,14 +67,17 @@ class SimpleOAuthProvider(OAuthAuthorizationServerProvider):
         self._codes: dict[str, _AuthCode] = {}
         self._tokens: dict[str, _Token] = {}
 
-    async def get_client(self, client_id: str) -> OAuthClientInformationFull | None:
+    async def get_client(self, client_id: str) -> PermissiveOAuthClient | None:
         c = self._clients.get(client_id)
         if c:
             return c.info
         # Auto-register unknown clients (e.g. after server restart when memory is cleared)
-        info = OAuthClientInformationFull(
+        info = PermissiveOAuthClient(
             client_id=client_id,
-            redirect_uris=["https://chatgpt.com/connector_platform_oauth_redirect"],
+            redirect_uris=[
+                "https://chatgpt.com/connector_platform_oauth_redirect",
+                "https://chatgpt.com/connector/oauth/callback",
+            ],
             grant_types=["authorization_code", "refresh_token"],
             response_types=["code"],
             token_endpoint_auth_method="none",
@@ -58,7 +86,21 @@ class SimpleOAuthProvider(OAuthAuthorizationServerProvider):
         return info
 
     async def register_client(self, client_info: OAuthClientInformationFull) -> None:
-        self._clients[client_info.client_id] = _Client(info=client_info)
+        # Store with broad chatgpt.com patterns so any connector ID works
+        base_uris = [str(u) for u in client_info.redirect_uris]
+        if not any("chatgpt.com" in u for u in base_uris):
+            base_uris.append("https://chatgpt.com/connector_platform_oauth_redirect")
+        if "https://chatgpt.com/connector_platform_oauth_redirect" not in base_uris:
+            base_uris.append("https://chatgpt.com/connector_platform_oauth_redirect")
+        info = PermissiveOAuthClient(
+            client_id=client_info.client_id,
+            redirect_uris=base_uris,
+            grant_types=client_info.grant_types,
+            response_types=client_info.response_types,
+            client_name=client_info.client_name,
+            token_endpoint_auth_method=client_info.token_endpoint_auth_method,
+        )
+        self._clients[client_info.client_id] = _Client(info=info)
 
     async def authorize(
         self, client: OAuthClientInformationFull, params: AuthorizationParams

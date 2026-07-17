@@ -44,7 +44,18 @@ class SimpleOAuthProvider(OAuthAuthorizationServerProvider):
 
     async def get_client(self, client_id: str) -> OAuthClientInformationFull | None:
         c = self._clients.get(client_id)
-        return c.info if c else None
+        if c:
+            return c.info
+        # Auto-register cached client IDs (e.g. after server restart)
+        info = OAuthClientInformationFull(
+            client_id=client_id,
+            redirect_uris=[],
+            grant_types=["authorization_code", "refresh_token"],
+            response_types=["code"],
+            token_endpoint_auth_method="none",
+        )
+        await self.register_client(info)
+        return info
 
     async def register_client(self, client_info: OAuthClientInformationFull) -> None:
         self._clients[client_info.client_id] = _Client(info=client_info)

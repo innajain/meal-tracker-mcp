@@ -46,10 +46,10 @@ class SimpleOAuthProvider(OAuthAuthorizationServerProvider):
         c = self._clients.get(client_id)
         if c:
             return c.info
-        # Auto-register cached client IDs (e.g. after server restart)
+        # Auto-register unknown clients (e.g. after server restart when memory is cleared)
         info = OAuthClientInformationFull(
             client_id=client_id,
-            redirect_uris=[],
+            redirect_uris=["https://chatgpt.com/connector_platform_oauth_redirect"],
             grant_types=["authorization_code", "refresh_token"],
             response_types=["code"],
             token_endpoint_auth_method="none",

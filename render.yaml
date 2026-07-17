@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: meal-tracker-mcp
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python server.py --http
+    envVars:
+      - key: MCP_API_TOKEN
+        generateValue: true

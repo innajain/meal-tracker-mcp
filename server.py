@@ -4,12 +4,16 @@ from datetime import datetime, date
 from pathlib import Path
 from typing import Optional
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 mcp = FastMCP(
     "meal-tracker",
     host="0.0.0.0",
     port=int(os.environ.get("PORT", 8000)),
-    allowed_hosts=["*"],
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=False,
+        allowed_hosts=["*"],
+    ),
 )
 
 DATA_DIR = Path(__file__).parent / "data"

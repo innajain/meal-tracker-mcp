@@ -4,7 +4,7 @@ from datetime import datetime, date
 from pathlib import Path
 from typing import Optional
 from mcp.server.fastmcp import FastMCP
-from mcp.server.auth.settings import AuthSettings
+from mcp.server.auth.settings import AuthSettings, ClientRegistrationOptions
 from mcp.server.transport_security import TransportSecuritySettings
 from auth import SimpleOAuthProvider
 
@@ -22,6 +22,7 @@ mcp = FastMCP(
     auth=AuthSettings(
         issuer_url="https://meal-tracker-mcp.onrender.com",
         resource_server_url="https://meal-tracker-mcp.onrender.com",
+        client_registration_options=ClientRegistrationOptions(enabled=True),
     ),
 )
 

@@ -59,8 +59,9 @@ class SimpleOAuthProvider(OAuthAuthorizationServerProvider):
             redirect_uri=params.redirect_uri,
             code_challenge=params.code_challenge,
         )
-        sep = "&" if "?" in params.redirect_uri else "?"
-        return f"{params.redirect_uri}{sep}code={code}&state={params.state}"
+        redirect_uri = str(params.redirect_uri)
+        sep = "&" if "?" in redirect_uri else "?"
+        return f"{redirect_uri}{sep}code={code}&state={params.state}"
 
     async def load_authorization_code(
         self, client: OAuthClientInformationFull, authorization_code: str

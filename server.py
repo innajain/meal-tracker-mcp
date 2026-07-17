@@ -5,7 +5,12 @@ from pathlib import Path
 from typing import Optional
 from mcp.server.fastmcp import FastMCP
 
-mcp = FastMCP("meal-tracker")
+mcp = FastMCP(
+    "meal-tracker",
+    host="0.0.0.0",
+    port=int(os.environ.get("PORT", 8000)),
+    allowed_hosts=["*"],
+)
 
 DATA_DIR = Path(__file__).parent / "data"
 DATA_DIR.mkdir(exist_ok=True)
@@ -227,9 +232,9 @@ if __name__ == "__main__":
 
     transport = "stdio"
     if "--http" in sys.argv:
-        transport = "http"
+        transport = "streamable-http"
 
-    if transport == "http":
-        mcp.run(transport="http")
+    if transport == "streamable-http":
+        mcp.run(transport="streamable-http")
     else:
         mcp.run(transport="stdio")
